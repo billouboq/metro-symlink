@@ -5,20 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
+"use strict";
 
-'use strict';
+const babelGenerate = require("@babel/generator").default;
 
-const babelGenerate = require('@babel/generator').default;
-
-import type {GeneratorResult} from '@babel/generator';
-
-function generate(
-  ast: BabelNode,
-  filename: string,
-  sourceCode: string,
-): GeneratorResult {
+function generate(ast, filename, sourceCode) {
   const generated = babelGenerate(
     ast,
     {
@@ -27,9 +20,9 @@ function generate(
       filename,
       sourceFileName: filename,
       sourceMaps: true,
-      sourceMapTarget: filename,
+      sourceMapTarget: filename
     },
-    sourceCode,
+    sourceCode
   );
 
   if (generated.map) {
@@ -38,6 +31,7 @@ function generate(
     the error delete this comment and run Flow. */
     delete generated.map.sourcesContent;
   }
+
   return generated;
 }
 

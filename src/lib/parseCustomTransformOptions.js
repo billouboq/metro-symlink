@@ -6,29 +6,21 @@
  *
  * @emails oncall+metro_bundler
  * @format
- * @flow strict-local
+ *
  */
+"use strict";
 
-'use strict';
+const nullthrows = require("nullthrows");
 
-const nullthrows = require('nullthrows');
+const PREFIX = "transform.";
 
-import type {CustomTransformOptions} from 'metro-transform-worker';
-
-const PREFIX = 'transform.';
-
-module.exports = function parseCustomTransformOptions(urlObj: {
-  +query?: {[string]: string, ...},
-  ...
-}): CustomTransformOptions {
+module.exports = function parseCustomTransformOptions(urlObj) {
   const customTransformOptions = Object.create(null);
   const query = nullthrows(urlObj.query);
-
-  Object.keys(query).forEach((key: string) => {
+  Object.keys(query).forEach(key => {
     if (key.startsWith(PREFIX)) {
       customTransformOptions[key.substr(PREFIX.length)] = query[key];
     }
   });
-
   return customTransformOptions;
 };

@@ -5,19 +5,16 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
+"use strict"; // Add a random require to fill the bundle with some sourcecode.
 
-'use strict';
+require("./AssetRegistry");
 
-// Add a random require to fill the bundle with some sourcecode.
-require('./AssetRegistry');
-
-const calcSum = (value: string) => {
+const calcSum = value => {
   // some random function
-  const error = new Error('SOURCEMAP: value: ' + value);
-
+  const error = new Error("SOURCEMAP: value: " + value);
   return error;
 };
 
-module.exports = (calcSum('anything'): Error);
+module.exports = calcSum("anything");

@@ -6,47 +6,50 @@
  *
  * @format
  */
+"use strict";
 
-'use strict';
+const accepts = require("accepts");
 
-const accepts = require('accepts');
-
-const CRLF = '\r\n';
-const BOUNDARY = '3beqjf3apnqeu3h5jqorms4i';
+const CRLF = "\r\n";
+const BOUNDARY = "3beqjf3apnqeu3h5jqorms4i";
 
 class MultipartResponse {
   static wrap(req, res) {
     if (
       accepts(req)
         .types()
-        .includes('multipart/mixed')
+        .includes("multipart/mixed")
     ) {
       return new MultipartResponse(res);
-    }
-    // Ugly hack, ideally wrap function should always return a proxy
+    } // Ugly hack, ideally wrap function should always return a proxy
     // object with the same interface
+
     res.writeChunk = () => {}; // noop
+
     return res;
   }
 
   constructor(res) {
     this.res = res;
     this.headers = {};
-
     res.writeHead(200, {
-      'Content-Type': `multipart/mixed; boundary="${BOUNDARY}"`,
+      "Content-Type": `multipart/mixed; boundary="${BOUNDARY}"`
     });
     res.write(
-      'If you are seeing this, your client does not support multipart response',
+      "If you are seeing this, your client does not support multipart response"
     );
   }
 
-  writeChunk(headers, data, isLast = false) {
+  writeChunk(headers, data) {
+    let isLast =
+      arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+
     if (this.res.finished) {
       return;
     }
 
     this.res.write(`${CRLF}--${BOUNDARY}${CRLF}`);
+
     if (headers) {
       this.res.write(MultipartResponse.serializeHeaders(headers) + CRLF + CRLF);
     }
@@ -63,10 +66,12 @@ class MultipartResponse {
   writeHead(status, headers) {
     // We can't actually change the response HTTP status code
     // because the headers have already been sent
-    this.setHeader('X-Http-Status', status);
+    this.setHeader("X-Http-Status", status);
+
     if (!headers) {
       return;
     }
+
     for (const key in headers) {
       this.setHeader(key, headers[key]);
     }

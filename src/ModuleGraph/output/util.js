@@ -4,26 +4,118 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly)
+      symbols = symbols.filter(function(sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+    keys.push.apply(keys, symbols);
+  }
+  return keys;
+}
 
-const generate = require('../worker/generate');
-const mergeSourceMaps = require('../worker/mergeSourceMaps');
-const nullthrows = require('nullthrows');
-const reverseDependencyMapReferences = require('./reverse-dependency-map-references');
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys(Object(source), true).forEach(function(key) {
+        _defineProperty(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(Object(source)).forEach(function(key) {
+        Object.defineProperty(
+          target,
+          key,
+          Object.getOwnPropertyDescriptor(source, key)
+        );
+      });
+    }
+  }
+  return target;
+}
 
-const {addParamsToDefineCall} = require('metro-transform-plugins');
-const virtualModule = require('../module').virtual;
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
 
-// flowlint-next-line untyped-import:off
-const {passthroughSyntaxPlugins} = require('metro-react-native-babel-preset');
-const {transformSync} = require('@babel/core');
+function _toConsumableArray(arr) {
+  return (
+    _arrayWithoutHoles(arr) ||
+    _iterableToArray(arr) ||
+    _unsupportedIterableToArray(arr) ||
+    _nonIterableSpread()
+  );
+}
 
-import type {Dependency, IdsForPathFn, Module} from '../types.flow';
-import type {BasicSourceMap} from 'metro-source-map';
+function _nonIterableSpread() {
+  throw new TypeError(
+    "Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
+  );
+}
+
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n))
+    return _arrayLikeToArray(o, minLen);
+}
+
+function _iterableToArray(iter) {
+  if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter))
+    return Array.from(iter);
+}
+
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) return _arrayLikeToArray(arr);
+}
+
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
+
+const generate = require("../worker/generate");
+
+const mergeSourceMaps = require("../worker/mergeSourceMaps");
+
+const nullthrows = require("nullthrows");
+
+const reverseDependencyMapReferences = require("./reverse-dependency-map-references");
+
+const _require = require("metro-transform-plugins"),
+  addParamsToDefineCall = _require.addParamsToDefineCall;
+
+const virtualModule = require("../module").virtual; // flowlint-next-line untyped-import:off
+
+const _require2 = require("metro-react-native-babel-preset"),
+  passthroughSyntaxPlugins = _require2.passthroughSyntaxPlugins;
+
+const _require3 = require("@babel/core"),
+  transformSync = _require3.transformSync;
 
 // Transformed modules have the form
 //   __d(function(require, module, global, exports, dependencyMap) {
@@ -32,60 +124,51 @@ import type {BasicSourceMap} from 'metro-source-map';
 //
 // This function adds the numeric module ID, and an array with dependencies of
 // the dependencies of the module before the closing parenthesis.
-function addModuleIdsToModuleWrapper(
-  module: Module,
-  idForPath: ({path: string, ...}) => number,
-): string {
-  const {dependencies, file} = module;
-  const {code} = file;
-
-  // calling `idForPath` on the module itself first gives us a lower module id
+function addModuleIdsToModuleWrapper(module, idForPath) {
+  const dependencies = module.dependencies,
+    file = module.file;
+  const code = file.code; // calling `idForPath` on the module itself first gives us a lower module id
   // for the file itself than for its dependencies. That reflects their order
   // in the bundle.
-  const fileId = idForPath(file);
 
+  const fileId = idForPath(file);
   const paramsToAdd = [fileId];
 
   if (dependencies.length) {
     paramsToAdd.push(dependencies.map(idForPath));
   }
 
-  return addParamsToDefineCall(code, ...paramsToAdd);
+  return addParamsToDefineCall.apply(void 0, [code].concat(paramsToAdd));
 }
 
 exports.addModuleIdsToModuleWrapper = addModuleIdsToModuleWrapper;
 
-type InlineModuleIdsOptions = {
-  dependencyMapReservedName: ?string,
-  globalPrefix: string,
-  ignoreMissingDependencyMapReference?: boolean,
-};
-
-function inlineModuleIds(
-  module: Module,
-  idForPath: ({path: string, ...}) => number,
-  {
-    dependencyMapReservedName = undefined,
-    globalPrefix,
-    ignoreMissingDependencyMapReference = false,
-  }: InlineModuleIdsOptions,
-): {
-  moduleCode: string,
-  moduleMap: ?BasicSourceMap,
-  fileId: number,
-} {
-  const {dependencies, file} = module;
-  const {code, map, path} = file;
-
-  // calling `idForPath` on the module itself first gives us a lower module id
+function inlineModuleIds(module, idForPath, _ref) {
+  let _ref$dependencyMapRes = _ref.dependencyMapReservedName,
+    dependencyMapReservedName =
+      _ref$dependencyMapRes === void 0 ? undefined : _ref$dependencyMapRes,
+    globalPrefix = _ref.globalPrefix,
+    _ref$ignoreMissingDep = _ref.ignoreMissingDependencyMapReference,
+    ignoreMissingDependencyMapReference =
+      _ref$ignoreMissingDep === void 0 ? false : _ref$ignoreMissingDep;
+  const dependencies = module.dependencies,
+    file = module.file;
+  const code = file.code,
+    map = file.map,
+    path = file.path; // calling `idForPath` on the module itself first gives us a lower module id
   // for the file itself than for its dependencies. That reflects their order
   // in the bundle.
+
   const fileId = idForPath(file);
   const dependencyIds = dependencies.map(idForPath);
 
   if (!dependencyIds.length) {
     // Nothing to inline in this module.
-    return {fileId, moduleCode: code, moduleMap: map};
+    return {
+      fileId,
+      moduleCode: code,
+      moduleMap: map
+    };
   }
 
   if (dependencyMapReservedName != null) {
@@ -116,232 +199,234 @@ function inlineModuleIds(
      */
     if (!code.includes(dependencyMapReservedName)) {
       if (ignoreMissingDependencyMapReference) {
-        return {fileId, moduleCode: code, moduleMap: map};
-      }
-
-      // If we're here, the module was probably generated by some code that
+        return {
+          fileId,
+          moduleCode: code,
+          moduleMap: map
+        };
+      } // If we're here, the module was probably generated by some code that
       // doesn't make the dependency map name externally configurable, or a
       // mock that needs to be updated.
+
       throw new Error(
         `Module has dependencies but does not use the preconfigured dependency map name '${dependencyMapReservedName}': ${file.path}\n` +
-          'This is an internal error in Metro.',
+          "This is an internal error in Metro."
       );
     }
-    const WS = '[\t ]*';
+
+    const WS = "[\t ]*";
     const depMapReferenceRegex = new RegExp(
       escapeRegex(dependencyMapReservedName) + `${WS}\\[${WS}([0-9]+)${WS}\\]`,
-      'g',
+      "g"
     );
     const inlinedCode = code.replace(
       depMapReferenceRegex,
       (match, depIndex) => {
         const idStr = dependencyIds[Number.parseInt(depIndex, 10)].toString();
+
         if (idStr.length > match.length) {
           // Stop the build rather than silently emit an incorrect source map.
           throw new Error(
             `Module ID doesn't fit in available space; add ${idStr.length -
-              match.length} more characters to 'dependencyMapReservedName'.`,
+              match.length} more characters to 'dependencyMapReservedName'.`
           );
         }
+
         return idStr.padEnd(match.length);
-      },
+      }
     );
     return {
       fileId,
       moduleCode: inlinedCode,
-      moduleMap: map,
+      moduleMap: map
     };
   }
+
   const ast = nullthrows(
     transformSync(code, {
       ast: true,
       babelrc: false,
       code: false,
       configFile: false,
-      plugins: [
-        ...passthroughSyntaxPlugins,
-        [reverseDependencyMapReferences, {dependencyIds, globalPrefix}],
-      ],
-    }).ast,
+      plugins: [].concat(_toConsumableArray(passthroughSyntaxPlugins), [
+        [
+          reverseDependencyMapReferences,
+          {
+            dependencyIds,
+            globalPrefix
+          }
+        ]
+      ])
+    }).ast
   );
 
-  const {code: generatedCode, map: generatedMap} = generate(ast, path, '');
+  const _generate = generate(ast, path, ""),
+    generatedCode = _generate.code,
+    generatedMap = _generate.map;
 
   return {
     fileId,
     moduleCode: generatedCode,
-    moduleMap: map && generatedMap && mergeSourceMaps(path, map, generatedMap),
+    moduleMap: map && generatedMap && mergeSourceMaps(path, map, generatedMap)
   };
 }
 
-function inlineModuleIdsAndAddParamsToDefineCall(
-  module: Module,
-  idForPath: ({path: string, ...}) => number,
-  options: InlineModuleIdsOptions,
-): {
-  moduleCode: string,
-  moduleMap: ?BasicSourceMap,
-} {
-  const {fileId, moduleCode, moduleMap} = inlineModuleIds(
-    module,
-    idForPath,
-    options,
-  );
+function inlineModuleIdsAndAddParamsToDefineCall(module, idForPath, options) {
+  const _inlineModuleIds = inlineModuleIds(module, idForPath, options),
+    fileId = _inlineModuleIds.fileId,
+    moduleCode = _inlineModuleIds.moduleCode,
+    moduleMap = _inlineModuleIds.moduleMap;
 
-  return {moduleCode: addParamsToDefineCall(moduleCode, fileId), moduleMap};
+  return {
+    moduleCode: addParamsToDefineCall(moduleCode, fileId),
+    moduleMap
+  };
 }
 
 exports.inlineModuleIds = inlineModuleIds;
 exports.inlineModuleIdsAndAddParamsToDefineCall = inlineModuleIdsAndAddParamsToDefineCall;
 
-function escapeRegex(str: string): string {
+function escapeRegex(str) {
   // From http://stackoverflow.com/questions/14076210/
-  return str.replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
+  return str.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
 }
-
-type IdForPathFn = ({path: string, ...}) => number;
 
 /**
  * 1. Adds the module ids to a file if the file is a module. If it's not (e.g.
  *    a script) it just keeps it as-is.
  * 2. Packs the function map into the file's source map, if one exists.
  */
-function getModuleCodeAndMap(
-  module: Module,
-  idForPath: IdForPathFn,
-  options: $ReadOnly<{
-    enableIDInlining: boolean,
-    dependencyMapReservedName: ?string,
-    globalPrefix: string,
-  }>,
-): {|
-  moduleCode: string,
-  moduleMap: ?BasicSourceMap,
-|} {
-  const {file} = module;
+function getModuleCodeAndMap(module, idForPath, options) {
+  const file = module.file;
   let moduleCode, moduleMap;
 
-  if (file.type !== 'module') {
+  if (file.type !== "module") {
     moduleCode = file.code;
     moduleMap = file.map;
   } else if (!options.enableIDInlining) {
     moduleCode = addModuleIdsToModuleWrapper(module, idForPath);
     moduleMap = file.map;
   } else {
-    ({moduleCode, moduleMap} = inlineModuleIdsAndAddParamsToDefineCall(
+    var _inlineModuleIdsAndAd = inlineModuleIdsAndAddParamsToDefineCall(
       module,
       idForPath,
       {
         dependencyMapReservedName: options.dependencyMapReservedName,
-        globalPrefix: options.globalPrefix,
-      },
-    ));
+        globalPrefix: options.globalPrefix
+      }
+    );
+
+    moduleCode = _inlineModuleIdsAndAd.moduleCode;
+    moduleMap = _inlineModuleIdsAndAd.moduleMap;
   }
+
   if (moduleMap && moduleMap.sources) {
     const x_facebook_sources = [];
+
     if (moduleMap.sources.length >= 1) {
       x_facebook_sources.push([module.file.functionMap]);
     }
-    moduleMap = {...moduleMap, x_facebook_sources};
+
+    moduleMap = _objectSpread(
+      _objectSpread({}, moduleMap),
+      {},
+      {
+        x_facebook_sources
+      }
+    );
   }
-  return {moduleCode, moduleMap};
+
+  return {
+    moduleCode,
+    moduleMap
+  };
 }
 
-exports.getModuleCodeAndMap = getModuleCodeAndMap;
+exports.getModuleCodeAndMap = getModuleCodeAndMap; // Concatenates many iterables, by calling them sequentially.
 
-// Concatenates many iterables, by calling them sequentially.
-exports.concat = function* concat<T>(
-  ...iterables: Array<Iterable<T>>
-): Iterable<T> {
+exports.concat = function* concat() {
+  for (
+    var _len = arguments.length, iterables = new Array(_len), _key = 0;
+    _key < _len;
+    _key++
+  ) {
+    iterables[_key] = arguments[_key];
+  }
+
   for (const it of iterables) {
     yield* it;
   }
-};
-
-// Creates an idempotent function that returns numeric IDs for objects based
+}; // Creates an idempotent function that returns numeric IDs for objects based
 // on their `path` property.
-exports.createIdForPathFn = (): (({path: string, ...}) => number) => {
+
+exports.createIdForPathFn = () => {
   const seen = new Map();
   let next = 0;
-  return ({path}) => {
+  return _ref2 => {
+    let path = _ref2.path;
     let id = seen.get(path);
+
     if (id == null) {
       id = next++;
       seen.set(path, id);
     }
+
     return id;
   };
-};
-
-// creates a series of virtual modules with require calls to the passed-in
+}; // creates a series of virtual modules with require calls to the passed-in
 // modules.
-exports.requireCallsTo = function*(
-  modules: Iterable<Module>,
-  idForPath: IdForPathFn,
-  getRunModuleStatement: (id: number | string) => string,
-): Iterable<Module> {
+
+exports.requireCallsTo = function*(modules, idForPath, getRunModuleStatement) {
   for (const module of modules) {
     const id = idForPath(module.file);
     yield virtualModule(
       getRunModuleStatement(id),
-      `/<generated>/require-${id}.js`,
+      `/<generated>/require-${id}.js`
     );
   }
-};
-
-// Divides the modules into two types: the ones that are loaded at startup, and
+}; // Divides the modules into two types: the ones that are loaded at startup, and
 // the ones loaded deferredly (lazy loaded).
-exports.partition = (
-  modules: Iterable<Module>,
-  preloadedModules: Set<string>,
-): Array<Array<Module>> => {
+
+exports.partition = (modules, preloadedModules) => {
   const startup = [];
   const deferred = [];
+
   for (const module of modules) {
     (preloadedModules.has(module.file.path) ? startup : deferred).push(module);
   }
 
   return [startup, deferred];
-};
-
-// Transforms a new Module object into an old one, so that it can be passed
+}; // Transforms a new Module object into an old one, so that it can be passed
 // around code.
 // NOTE: Used only for RAM bundle serialization.
-function toModuleTransport(
-  module: Module,
-  idsForPath: IdsForPathFn,
-  {
-    dependencyMapReservedName,
-    globalPrefix,
-  }: {dependencyMapReservedName: ?string, globalPrefix: string},
-): {
-  code: string,
-  dependencies: Array<Dependency>,
-  id: number,
-  map: ?BasicSourceMap,
-  name: string,
-  sourcePath: string,
-  ...
-} {
-  const {dependencies, file} = module;
-  const {moduleCode, moduleMap} = getModuleCodeAndMap(
-    module,
-    (x: {path: string, ...}) => idsForPath(x).moduleId,
-    {
-      dependencyMapReservedName,
-      enableIDInlining: true,
-      globalPrefix,
-    },
-  );
+
+function toModuleTransport(module, idsForPath, _ref3) {
+  let dependencyMapReservedName = _ref3.dependencyMapReservedName,
+    globalPrefix = _ref3.globalPrefix;
+  const dependencies = module.dependencies,
+    file = module.file;
+
+  const _getModuleCodeAndMap = getModuleCodeAndMap(
+      module,
+      x => idsForPath(x).moduleId,
+      {
+        dependencyMapReservedName,
+        enableIDInlining: true,
+        globalPrefix
+      }
+    ),
+    moduleCode = _getModuleCodeAndMap.moduleCode,
+    moduleMap = _getModuleCodeAndMap.moduleMap;
 
   return {
     code: moduleCode,
     dependencies,
     // ID is required but we provide an invalid one for "script"s.
-    id: file.type === 'module' ? nullthrows(idsForPath(file).localId) : -1,
+    id: file.type === "module" ? nullthrows(idsForPath(file).localId) : -1,
     map: moduleMap,
     name: file.path,
-    sourcePath: file.path,
+    sourcePath: file.path
   };
 }
+
 exports.toModuleTransport = toModuleTransport;

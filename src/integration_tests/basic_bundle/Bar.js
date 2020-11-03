@@ -5,11 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
+"use strict";
 
-'use strict';
+const Foo = require("./Foo");
 
-const Foo = require('./Foo');
-
-module.exports = {type: 'bar', foo: Foo.type};
+module.exports = {
+  type: "bar",
+  foo: Foo.type
+};

@@ -4,43 +4,77 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
-
-const {getJsOutput} = require('./js');
-
-import type {Module} from '../../types.flow';
-import type {
-  MetroSourceMapSegmentTuple,
-  FBSourceFunctionMap,
-} from 'metro-source-map';
-
-function getSourceMapInfo(
-  module: Module<>,
-  options: {|
-    +excludeSource: boolean,
-  |},
-): {|
-  +map: Array<MetroSourceMapSegmentTuple>,
-  +functionMap: ?FBSourceFunctionMap,
-  +code: string,
-  +path: string,
-  +source: string,
-  +lineCount: number,
-|} {
-  return {
-    ...getJsOutput(module).data,
-    path: module.path,
-    source: options.excludeSource ? '' : getModuleSource(module),
-  };
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly)
+      symbols = symbols.filter(function(sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+    keys.push.apply(keys, symbols);
+  }
+  return keys;
 }
 
-function getModuleSource(module: Module<>): string {
-  if (getJsOutput(module).type === 'js/module/asset') {
-    return '';
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys(Object(source), true).forEach(function(key) {
+        _defineProperty(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(Object(source)).forEach(function(key) {
+        Object.defineProperty(
+          target,
+          key,
+          Object.getOwnPropertyDescriptor(source, key)
+        );
+      });
+    }
+  }
+  return target;
+}
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+
+const _require = require("./js"),
+  getJsOutput = _require.getJsOutput;
+
+function getSourceMapInfo(module, options) {
+  return _objectSpread(
+    _objectSpread({}, getJsOutput(module).data),
+    {},
+    {
+      path: module.path,
+      source: options.excludeSource ? "" : getModuleSource(module)
+    }
+  );
+}
+
+function getModuleSource(module) {
+  if (getJsOutput(module).type === "js/module/asset") {
+    return "";
   }
 
   return module.getSource().toString();

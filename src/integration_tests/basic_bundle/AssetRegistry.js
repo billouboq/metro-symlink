@@ -5,13 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
-
-'use strict';
+"use strict";
 
 module.exports = {
-  registerAsset(data: mixed): mixed {
+  registerAsset(data) {
     return data;
-  },
+  }
 };

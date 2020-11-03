@@ -4,33 +4,53 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
 
-const getSourceMapInfo = require('./helpers/getSourceMapInfo');
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
 
-const {isJsModule} = require('./helpers/js');
-const {
-  fromRawMappings,
-  fromRawMappingsNonBlocking,
-} = require('metro-source-map');
+const getSourceMapInfo = require("./helpers/getSourceMapInfo");
 
-import type {Module} from '../types.flow';
+const _require = require("./helpers/js"),
+  isJsModule = _require.isJsModule;
 
-type ReturnType<F> = $Call<<A, R>((...A) => R) => R, F>;
+const _require2 = require("metro-source-map"),
+  fromRawMappings = _require2.fromRawMappings,
+  fromRawMappingsNonBlocking = _require2.fromRawMappingsNonBlocking;
 
-function getSourceMapInfosImpl(
-  isBlocking: boolean,
-  onDone: ($ReadOnlyArray<ReturnType<typeof getSourceMapInfo>>) => void,
-  modules: $ReadOnlyArray<Module<>>,
-  options: {|
-    +excludeSource: boolean,
-    +processModuleFilter: (module: Module<>) => boolean,
-  |},
-): void {
+function getSourceMapInfosImpl(isBlocking, onDone, modules, options) {
   const sourceMapInfos = [];
   const modulesToProcess = modules
     .filter(isJsModule)
@@ -43,7 +63,7 @@ function getSourceMapInfosImpl(
 
     const mod = modulesToProcess.shift();
     const info = getSourceMapInfo(mod, {
-      excludeSource: options.excludeSource,
+      excludeSource: options.excludeSource
     });
     sourceMapInfos.push(info);
     return false;
@@ -51,17 +71,21 @@ function getSourceMapInfosImpl(
 
   function workLoop() {
     const time = process.hrtime();
+
     while (true) {
       const isDone = processNextModule();
+
       if (isDone) {
         onDone(sourceMapInfos);
         break;
       }
+
       if (!isBlocking) {
         // Keep the loop running but try to avoid blocking
         // for too long because this is not in a worker yet.
         const diff = process.hrtime(time);
         const NS_IN_MS = 1000000;
+
         if (diff[1] > 50 * NS_IN_MS) {
           // We've blocked for more than 50ms.
           // This code currently runs on the main thread,
@@ -72,16 +96,11 @@ function getSourceMapInfosImpl(
       }
     }
   }
+
   workLoop();
 }
 
-function sourceMapGenerator(
-  modules: $ReadOnlyArray<Module<>>,
-  options: {|
-    +excludeSource: boolean,
-    +processModuleFilter: (module: Module<>) => boolean,
-  |},
-): ReturnType<typeof fromRawMappings> {
+function sourceMapGenerator(modules, options) {
   let sourceMapInfos;
   getSourceMapInfosImpl(
     true,
@@ -89,30 +108,36 @@ function sourceMapGenerator(
       sourceMapInfos = infos;
     },
     modules,
-    options,
+    options
   );
+
   if (sourceMapInfos == null) {
     throw new Error(
-      'Expected getSourceMapInfosImpl() to finish synchronously.',
+      "Expected getSourceMapInfosImpl() to finish synchronously."
     );
   }
+
   return fromRawMappings(sourceMapInfos);
 }
 
-async function sourceMapGeneratorNonBlocking(
-  modules: $ReadOnlyArray<Module<>>,
-  options: {|
-    +excludeSource: boolean,
-    +processModuleFilter: (module: Module<>) => boolean,
-  |},
-): ReturnType<typeof fromRawMappingsNonBlocking> {
-  const sourceMapInfos = await new Promise(resolve => {
-    getSourceMapInfosImpl(false, resolve, modules, options);
+function sourceMapGeneratorNonBlocking(_x, _x2) {
+  return _sourceMapGeneratorNonBlocking.apply(this, arguments);
+}
+
+function _sourceMapGeneratorNonBlocking() {
+  _sourceMapGeneratorNonBlocking = _asyncToGenerator(function*(
+    modules,
+    options
+  ) {
+    const sourceMapInfos = yield new Promise(resolve => {
+      getSourceMapInfosImpl(false, resolve, modules, options);
+    });
+    return fromRawMappingsNonBlocking(sourceMapInfos);
   });
-  return fromRawMappingsNonBlocking(sourceMapInfos);
+  return _sourceMapGeneratorNonBlocking.apply(this, arguments);
 }
 
 module.exports = {
   sourceMapGenerator,
-  sourceMapGeneratorNonBlocking,
+  sourceMapGeneratorNonBlocking
 };

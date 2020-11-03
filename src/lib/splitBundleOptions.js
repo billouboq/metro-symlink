@@ -4,18 +4,15 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
-
-'use strict';
-
-import type {BundleOptions, SplitBundleOptions} from '../shared/types.flow';
+"use strict";
 
 /**
  * Splits a BundleOptions object into smaller, more manageable parts.
  */
-function splitBundleOptions(options: BundleOptions): SplitBundleOptions {
+function splitBundleOptions(options) {
   return {
     entryFile: options.entryFile,
     transformOptions: {
@@ -25,8 +22,8 @@ function splitBundleOptions(options: BundleOptions): SplitBundleOptions {
       minify: options.minify,
       platform: options.platform,
       runtimeBytecodeVersion: options.runtimeBytecodeVersion,
-      type: 'module',
-      unstable_transformProfile: options.unstable_transformProfile,
+      type: "module",
+      unstable_transformProfile: options.unstable_transformProfile
     },
     serializerOptions: {
       excludeSource: options.excludeSource,
@@ -34,12 +31,12 @@ function splitBundleOptions(options: BundleOptions): SplitBundleOptions {
       modulesOnly: options.modulesOnly,
       runModule: options.runModule,
       sourceMapUrl: options.sourceMapUrl,
-      sourceUrl: options.sourceUrl,
+      sourceUrl: options.sourceUrl
     },
     graphOptions: {
-      shallow: options.shallow,
+      shallow: options.shallow
     },
-    onProgress: options.onProgress,
+    onProgress: options.onProgress
   };
 }
 

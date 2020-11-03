@@ -7,18 +7,17 @@
  * @emails oncall+metro_bundler
  * @format
  */
+"use strict";
 
-'use strict';
-
-const fs = require('fs');
-
+const fs = require("fs");
 /**
  * Simple hasteImpl that parses @providesModule annotation from JS modules.
  */
+
 module.exports = {
-  getHasteName(filename: string) {
+  getHasteName(filename) {
     const matches = fs
-      .readFileSync(filename, 'utf8')
+      .readFileSync(filename, "utf8")
       .match(/@providesModule ([^\n]+)/);
 
     if (!matches) {
@@ -26,5 +25,5 @@ module.exports = {
     }
 
     return matches[1];
-  },
+  }
 };

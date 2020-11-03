@@ -4,95 +4,121 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function _slicedToArray(arr, i) {
+  return (
+    _arrayWithHoles(arr) ||
+    _iterableToArrayLimit(arr, i) ||
+    _unsupportedIterableToArray(arr, i) ||
+    _nonIterableRest()
+  );
+}
 
-const babelTypes = require('@babel/types');
-const babylon = require('@babel/parser');
-const nullthrows = require('nullthrows');
-const template = require('@babel/template').default;
+function _nonIterableRest() {
+  throw new TypeError(
+    "Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
+  );
+}
 
-import type {AssetDataFiltered, AssetDataWithoutFiles} from '../Assets';
-import type {ModuleTransportLike} from '../shared/types.flow';
-import type {File} from '@babel/types';
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n))
+    return _arrayLikeToArray(o, minLen);
+}
 
-// Structure of the object: dir.name.scale = asset
-export type RemoteFileMap = {
-  [string]: {
-    [string]: {
-      [number]: {
-        handle: string,
-        hash: string,
-        ...
-      },
-      ...,
-    },
-    ...,
-  },
-  __proto__: null,
-  ...
-};
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
 
-// Structure of the object: platform.dir.name.scale = asset
-export type PlatformRemoteFileMap = {
-  [string]: RemoteFileMap,
-  __proto__: null,
-  ...
-};
+function _iterableToArrayLimit(arr, i) {
+  if (typeof Symbol === "undefined" || !(Symbol.iterator in Object(arr)))
+    return;
+  var _arr = [];
+  var _n = true;
+  var _d = false;
+  var _e = undefined;
+  try {
+    for (
+      var _i = arr[Symbol.iterator](), _s;
+      !(_n = (_s = _i.next()).done);
+      _n = true
+    ) {
+      _arr.push(_s.value);
+      if (i && _arr.length === i) break;
+    }
+  } catch (err) {
+    _d = true;
+    _e = err;
+  } finally {
+    try {
+      if (!_n && _i["return"] != null) _i["return"]();
+    } finally {
+      if (_d) throw _e;
+    }
+  }
+  return _arr;
+}
 
-type SubTree<T: ModuleTransportLike> = (
-  moduleTransport: T,
-  moduleTransportsByPath: Map<string, T>,
-) => Iterable<number>;
+function _arrayWithHoles(arr) {
+  if (Array.isArray(arr)) return arr;
+}
 
-const assetPropertyBlockList = new Set(['files', 'fileSystemLocation', 'path']);
+const babelTypes = require("@babel/types");
 
-function generateAssetCodeFileAst(
-  assetRegistryPath: string,
-  assetDescriptor: AssetDataWithoutFiles,
-): File {
+const babylon = require("@babel/parser");
+
+const nullthrows = require("nullthrows");
+
+const template = require("@babel/template").default;
+
+const assetPropertyBlockList = new Set(["files", "fileSystemLocation", "path"]);
+
+function generateAssetCodeFileAst(assetRegistryPath, assetDescriptor) {
   const properDescriptor = filterObject(
     assetDescriptor,
-    assetPropertyBlockList,
-  );
+    assetPropertyBlockList
+  ); // {...}
 
-  // {...}
   const descriptorAst = babylon.parseExpression(
-    JSON.stringify(properDescriptor),
+    JSON.stringify(properDescriptor)
   );
-  const t = babelTypes;
+  const t = babelTypes; // require('AssetRegistry').registerAsset({...})
 
-  // require('AssetRegistry').registerAsset({...})
   const buildRequire = template.statement(`
     module.exports = require(ASSET_REGISTRY_PATH).registerAsset(DESCRIPTOR_AST)
   `);
-
   return t.file(
     t.program([
       buildRequire({
         ASSET_REGISTRY_PATH: t.stringLiteral(assetRegistryPath),
-        DESCRIPTOR_AST: descriptorAst,
-      }),
-    ]),
+        DESCRIPTOR_AST: descriptorAst
+      })
+    ])
   );
 }
-
 /**
  * Generates the code involved in requiring an asset, but to be loaded remotely.
  * If the asset cannot be found within the map, then it falls back to the
  * standard asset.
  */
-function generateRemoteAssetCodeFileAst(
-  assetSourceResolverPath: string,
-  assetDescriptor: AssetDataWithoutFiles,
-  remoteServer: string,
-  remoteFileMap: RemoteFileMap,
-): ?File {
-  const t = babelTypes;
 
+function generateRemoteAssetCodeFileAst(
+  assetSourceResolverPath,
+  assetDescriptor,
+  remoteServer,
+  remoteFileMap
+) {
+  const t = babelTypes;
   const file = remoteFileMap[assetDescriptor.fileSystemLocation];
   const descriptor = file && file[assetDescriptor.name];
   const data = {};
@@ -103,18 +129,14 @@ function generateRemoteAssetCodeFileAst(
 
   for (const scale in descriptor) {
     data[+scale] = descriptor[+scale].handle;
-  }
+  } // {2: 'path/to/image@2x', 3: 'path/to/image@3x', ...}
 
-  // {2: 'path/to/image@2x', 3: 'path/to/image@3x', ...}
-  const astData = babylon.parseExpression(JSON.stringify(data));
+  const astData = babylon.parseExpression(JSON.stringify(data)); // URI to remote server
 
-  // URI to remote server
-  const URI = t.stringLiteral(remoteServer);
+  const URI = t.stringLiteral(remoteServer); // Size numbers.
 
-  // Size numbers.
   const WIDTH = t.numericLiteral(nullthrows(assetDescriptor.width));
   const HEIGHT = t.numericLiteral(nullthrows(assetDescriptor.height));
-
   const buildRequire = template.statement(`
     module.exports = {
       "width": WIDTH,
@@ -122,7 +144,6 @@ function generateRemoteAssetCodeFileAst(
       "uri": URI + OBJECT_AST[require(ASSET_SOURCE_RESOLVER_PATH).pickScale(SCALE_ARRAY)]
     };
   `);
-
   return t.file(
     t.program([
       buildRequire({
@@ -134,83 +155,92 @@ function generateRemoteAssetCodeFileAst(
         SCALE_ARRAY: t.arrayExpression(
           Object.keys(descriptor)
             .map(Number)
-            .sort((a: number, b: number) => a - b)
-            .map((scale: number) => t.numericLiteral(scale)),
-        ),
-      }),
-    ]),
+            .sort((a, b) => a - b)
+            .map(scale => t.numericLiteral(scale))
+        )
+      })
+    ])
   );
-}
-
-// Test extension against all types supported by image-size module.
+} // Test extension against all types supported by image-size module.
 // If it's not one of these, we won't treat it as an image.
-function isAssetTypeAnImage(type: string): boolean {
+
+function isAssetTypeAnImage(type) {
   return (
-    ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'psd', 'svg', 'tiff'].indexOf(
-      type,
+    ["png", "jpg", "jpeg", "bmp", "gif", "webp", "psd", "svg", "tiff"].indexOf(
+      type
     ) !== -1
   );
 }
 
-function filterObject(
-  object: AssetDataWithoutFiles,
-  blockList: Set<string>,
-): AssetDataFiltered {
+function filterObject(object, blockList) {
   const copied = Object.assign({}, object);
+
   for (const key of blockList) {
     delete copied[key];
   }
+
   return copied;
 }
 
-function createRamBundleGroups<T: ModuleTransportLike>(
-  ramGroups: $ReadOnlyArray<string>,
-  groupableModules: $ReadOnlyArray<T>,
-  subtree: SubTree<T>,
-): Map<number, Set<number>> {
+function createRamBundleGroups(ramGroups, groupableModules, subtree) {
   // build two maps that allow to lookup module data
   // by path or (numeric) module id;
-  const byPath: Map<string, T> = new Map();
-  const byId: Map<number, string> = new Map();
-  groupableModules.forEach((m: T) => {
+  const byPath = new Map();
+  const byId = new Map();
+  groupableModules.forEach(m => {
     byPath.set(m.sourcePath, m);
     byId.set(m.id, m.sourcePath);
-  });
+  }); // build a map of group root IDs to an array of module IDs in the group
 
-  // build a map of group root IDs to an array of module IDs in the group
-  const result: Map<number, Set<number>> = new Map(
-    ramGroups.map((modulePath: string) => {
+  const result = new Map(
+    ramGroups.map(modulePath => {
       const root = byPath.get(modulePath);
+
       if (root == null) {
         throw Error(`Group root ${modulePath} is not part of the bundle`);
       }
+
       return [
-        root.id,
-        // `subtree` yields the IDs of all transitive dependencies of a module
-        new Set(subtree(root, byPath)),
+        root.id, // `subtree` yields the IDs of all transitive dependencies of a module
+        new Set(subtree(root, byPath))
       ];
-    }),
+    })
   );
 
   if (ramGroups.length > 1) {
     // build a map of all grouped module IDs to an array of group root IDs
     const all = new ArrayMap();
-    for (const [parent, children] of result) {
+
+    for (const _ref of result) {
+      var _ref2 = _slicedToArray(_ref, 2);
+
+      const parent = _ref2[0];
+      const children = _ref2[1];
+
       for (const module of children) {
         all.get(module).push(parent);
       }
-    }
+    } // find all module IDs that are part of more than one group
 
-    // find all module IDs that are part of more than one group
-    const doubles = filter(all, ([, parents]) => parents.length > 1);
-    for (const [moduleId, parents] of doubles) {
+    const doubles = filter(all, _ref3 => {
+      let _ref4 = _slicedToArray(_ref3, 2),
+        parents = _ref4[1];
+
+      return parents.length > 1;
+    });
+
+    for (const _ref5 of doubles) {
+      var _ref6 = _slicedToArray(_ref5, 2);
+
+      const moduleId = _ref6[0];
+      const parents = _ref6[1];
       const parentNames = parents.map(byId.get, byId);
       const lastName = parentNames.pop();
       throw new Error(
         `Module ${byId.get(moduleId) ||
-          moduleId} belongs to groups ${parentNames.join(', ')}, and ${String(
-          lastName,
-        )}. Ensure that each module is only part of one group.`,
+          moduleId} belongs to groups ${parentNames.join(", ")}, and ${String(
+          lastName
+        )}. Ensure that each module is only part of one group.`
       );
     }
   }
@@ -218,10 +248,7 @@ function createRamBundleGroups<T: ModuleTransportLike>(
   return result;
 }
 
-function* filter<A: number, B: number>(
-  iterator: ArrayMap<A, B>,
-  predicate: ([A, Array<B>]) => boolean,
-): Generator<[A, Array<B>], void, void> {
+function* filter(iterator, predicate) {
   for (const value of iterator) {
     if (predicate(value)) {
       yield value;
@@ -229,13 +256,15 @@ function* filter<A: number, B: number>(
   }
 }
 
-class ArrayMap<K, V> extends Map<K, Array<V>> {
-  get(key: K): Array<V> {
+class ArrayMap extends Map {
+  get(key) {
     let array = super.get(key);
+
     if (!array) {
       array = [];
       this.set(key, array);
     }
+
     return array;
   }
 }
@@ -244,5 +273,5 @@ module.exports = {
   createRamBundleGroups,
   generateAssetCodeFileAst,
   generateRemoteAssetCodeFileAst,
-  isAssetTypeAnImage,
+  isAssetTypeAnImage
 };

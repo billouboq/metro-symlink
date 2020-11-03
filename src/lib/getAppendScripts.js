@@ -4,39 +4,62 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function _toConsumableArray(arr) {
+  return (
+    _arrayWithoutHoles(arr) ||
+    _iterableToArray(arr) ||
+    _unsupportedIterableToArray(arr) ||
+    _nonIterableSpread()
+  );
+}
 
-const countLines = require('./countLines');
-const getInlineSourceMappingURL = require('../DeltaBundler/Serializers/helpers/getInlineSourceMappingURL');
-const nullthrows = require('nullthrows');
-const path = require('path');
-const sourceMapString = require('../DeltaBundler/Serializers/sourceMapString');
+function _nonIterableSpread() {
+  throw new TypeError(
+    "Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
+  );
+}
 
-import type {Module} from '../DeltaBundler';
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n))
+    return _arrayLikeToArray(o, minLen);
+}
 
-type Options<T: number | string> = {
-  +asyncRequireModulePath: string,
-  +createModuleId: string => T,
-  +getRunModuleStatement: T => string,
-  +inlineSourceMap: ?boolean,
-  +projectRoot: string,
-  +runBeforeMainModule: $ReadOnlyArray<string>,
-  +runModule: boolean,
-  +sourceMapUrl: ?string,
-  +sourceUrl: ?string,
-  ...
-};
+function _iterableToArray(iter) {
+  if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter))
+    return Array.from(iter);
+}
 
-function getAppendScripts<T: number | string>(
-  entryPoint: string,
-  modules: $ReadOnlyArray<Module<>>,
-  importBundleNames: Set<string>,
-  options: Options<T>,
-): $ReadOnlyArray<Module<>> {
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) return _arrayLikeToArray(arr);
+}
+
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
+
+const countLines = require("./countLines");
+
+const getInlineSourceMappingURL = require("../DeltaBundler/Serializers/helpers/getInlineSourceMappingURL");
+
+const nullthrows = require("nullthrows");
+
+const path = require("path");
+
+const sourceMapString = require("../DeltaBundler/Serializers/sourceMapString");
+
+function getAppendScripts(entryPoint, modules, importBundleNames, options) {
   const output = [];
 
   if (importBundleNames.size) {
@@ -48,51 +71,53 @@ function getAppendScripts<T: number | string>(
       ] = bundlePath.slice(0, -path.extname(bundlePath).length);
     });
     const code = `(function(){var $$=${options.getRunModuleStatement(
-      options.createModuleId(options.asyncRequireModulePath),
+      options.createModuleId(options.asyncRequireModulePath)
     )}$$.addImportBundleNames(${String(
-      JSON.stringify(importBundleNamesObject),
+      JSON.stringify(importBundleNamesObject)
     )})})();`;
     output.push({
-      path: '$$importBundleNames',
+      path: "$$importBundleNames",
       dependencies: new Map(),
-      getSource: (): Buffer => Buffer.from(''),
+      getSource: () => Buffer.from(""),
       inverseDependencies: new Set(),
       output: [
         {
-          type: 'js/script/virtual',
+          type: "js/script/virtual",
           data: {
             code,
             lineCount: countLines(code),
-            map: [],
-          },
-        },
-      ],
+            map: []
+          }
+        }
+      ]
     });
   }
 
   if (options.runModule) {
-    const paths = [...options.runBeforeMainModule, entryPoint];
+    const paths = [].concat(_toConsumableArray(options.runBeforeMainModule), [
+      entryPoint
+    ]);
 
     for (const path of paths) {
-      if (modules.some((module: Module<>) => module.path === path)) {
+      if (modules.some(module => module.path === path)) {
         const code = options.getRunModuleStatement(
-          options.createModuleId(path),
+          options.createModuleId(path)
         );
         output.push({
           path: `require-${path}`,
           dependencies: new Map(),
-          getSource: (): Buffer => Buffer.from(''),
+          getSource: () => Buffer.from(""),
           inverseDependencies: new Set(),
           output: [
             {
-              type: 'js/script/virtual',
+              type: "js/script/virtual",
               data: {
                 code,
                 lineCount: countLines(code),
-                map: [],
-              },
-            },
-          ],
+                map: []
+              }
+            }
+          ]
         });
       }
     }
@@ -102,48 +127,47 @@ function getAppendScripts<T: number | string>(
     const sourceMappingURL = options.inlineSourceMap
       ? getInlineSourceMappingURL(
           sourceMapString(modules, {
-            processModuleFilter: (): boolean => true,
-            excludeSource: false,
-          }),
+            processModuleFilter: () => true,
+            excludeSource: false
+          })
         )
       : nullthrows(options.sourceMapUrl);
-
     const code = `//# sourceMappingURL=${sourceMappingURL}`;
     output.push({
-      path: 'source-map',
+      path: "source-map",
       dependencies: new Map(),
-      getSource: (): Buffer => Buffer.from(''),
+      getSource: () => Buffer.from(""),
       inverseDependencies: new Set(),
       output: [
         {
-          type: 'js/script/virtual',
+          type: "js/script/virtual",
           data: {
             code,
             lineCount: countLines(code),
-            map: [],
-          },
-        },
-      ],
+            map: []
+          }
+        }
+      ]
     });
   }
 
   if (options.sourceUrl) {
     const code = `//# sourceURL=${options.sourceUrl}`;
     output.push({
-      path: 'source-url',
+      path: "source-url",
       dependencies: new Map(),
-      getSource: (): Buffer => Buffer.from(''),
+      getSource: () => Buffer.from(""),
       inverseDependencies: new Set(),
       output: [
         {
-          type: 'js/script/virtual',
+          type: "js/script/virtual",
           data: {
             code,
             lineCount: countLines(code),
-            map: [],
-          },
-        },
-      ],
+            map: []
+          }
+        }
+      ]
     });
   }
 

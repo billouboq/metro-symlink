@@ -4,63 +4,92 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
 
-const DependencyGraph = require('./node-haste/DependencyGraph');
-const Transformer = require('./DeltaBundler/Transformer');
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
 
-import type {TransformOptions} from './DeltaBundler/Worker';
-import type {TransformResultWithSource} from './DeltaBundler';
-import type {ConfigT} from 'metro-config/src/configTypes.flow';
+const DependencyGraph = require("./node-haste/DependencyGraph");
 
-export type BundlerOptions = $ReadOnly<{|
-  hasReducedPerformance?: boolean,
-  watch?: boolean,
-|}>;
+const Transformer = require("./DeltaBundler/Transformer");
 
 class Bundler {
-  _depGraphPromise: Promise<DependencyGraph>;
-  _transformer: Transformer;
-
-  constructor(config: ConfigT, options?: BundlerOptions) {
+  constructor(config, options) {
     this._depGraphPromise = DependencyGraph.load(config, options);
 
     this._depGraphPromise
-      .then((dependencyGraph: DependencyGraph) => {
+      .then(dependencyGraph => {
         this._transformer = new Transformer(
           config,
-          dependencyGraph.getSha1.bind(dependencyGraph),
+          dependencyGraph.getSha1.bind(dependencyGraph)
         );
       })
       .catch(error => {
-        console.error('Failed to construct transformer: ', error);
+        console.error("Failed to construct transformer: ", error);
       });
   }
 
-  async end(): Promise<void> {
-    const dependencyGraph = await this._depGraphPromise;
+  end() {
+    var _this = this;
 
-    this._transformer.end();
-    dependencyGraph.getWatcher().end();
+    return _asyncToGenerator(function*() {
+      const dependencyGraph = yield _this._depGraphPromise;
+
+      _this._transformer.end();
+
+      dependencyGraph.getWatcher().end();
+    })();
   }
 
-  async getDependencyGraph(): Promise<DependencyGraph> {
-    return await this._depGraphPromise;
+  getDependencyGraph() {
+    var _this2 = this;
+
+    return _asyncToGenerator(function*() {
+      return yield _this2._depGraphPromise;
+    })();
   }
 
-  async transformFile(
-    filePath: string,
-    transformOptions: TransformOptions,
-  ): Promise<TransformResultWithSource<>> {
-    // We need to be sure that the DependencyGraph has been initialized.
-    // TODO: Remove this ugly hack!
-    await this._depGraphPromise;
+  transformFile(filePath, transformOptions) {
+    var _this3 = this;
 
-    return this._transformer.transformFile(filePath, transformOptions);
+    return _asyncToGenerator(function*() {
+      // We need to be sure that the DependencyGraph has been initialized.
+      // TODO: Remove this ugly hack!
+      yield _this3._depGraphPromise;
+      return _this3._transformer.transformFile(filePath, transformOptions);
+    })();
   }
 }
 

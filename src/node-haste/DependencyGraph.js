@@ -4,119 +4,205 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function _toConsumableArray(arr) {
+  return (
+    _arrayWithoutHoles(arr) ||
+    _iterableToArray(arr) ||
+    _unsupportedIterableToArray(arr) ||
+    _nonIterableSpread()
+  );
+}
 
-const {AmbiguousModuleResolutionError} = require('metro-core');
-const {DuplicateHasteCandidatesError} = require('jest-haste-map').ModuleMap;
-const {InvalidPackageError} = require('metro-resolver');
-const {PackageResolutionError} = require('metro-core');
+function _nonIterableSpread() {
+  throw new TypeError(
+    "Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
+  );
+}
 
-const JestHasteMap = require('jest-haste-map');
-const Module = require('./Module');
-const ModuleCache = require('./ModuleCache');
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n))
+    return _arrayLikeToArray(o, minLen);
+}
 
-const ci = require('ci-info');
-const fs = require('fs');
-const path = require('path');
+function _iterableToArray(iter) {
+  if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter))
+    return Array.from(iter);
+}
 
-const {ModuleResolver} = require('./DependencyGraph/ModuleResolution');
-const {EventEmitter} = require('events');
-const {
-  Logger: {createActionStartEntry, createActionEndEntry, log},
-} = require('metro-core');
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) return _arrayLikeToArray(arr);
+}
 
-import type {ModuleMap} from './DependencyGraph/ModuleResolution';
-import type Package from './Package';
-import type {HasteFS} from './types';
-import type {ConfigT} from 'metro-config/src/configTypes.flow';
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
+
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
+
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+
+const _require = require("metro-core"),
+  AmbiguousModuleResolutionError = _require.AmbiguousModuleResolutionError;
+
+const DuplicateHasteCandidatesError = require("jest-haste-map").ModuleMap
+  .DuplicateHasteCandidatesError;
+
+const _require2 = require("metro-resolver"),
+  InvalidPackageError = _require2.InvalidPackageError;
+
+const _require3 = require("metro-core"),
+  PackageResolutionError = _require3.PackageResolutionError;
+
+const JestHasteMap = require("jest-haste-map");
+
+const Module = require("./Module");
+
+const ModuleCache = require("./ModuleCache");
+
+const ci = require("ci-info");
+
+const fs = require("fs");
+
+const path = require("path");
+
+const _require4 = require("./DependencyGraph/ModuleResolution"),
+  ModuleResolver = _require4.ModuleResolver;
+
+const _require5 = require("events"),
+  EventEmitter = _require5.EventEmitter;
+
+const _require6 = require("metro-core"),
+  _require6$Logger = _require6.Logger,
+  createActionStartEntry = _require6$Logger.createActionStartEntry,
+  createActionEndEntry = _require6$Logger.createActionEndEntry,
+  log = _require6$Logger.log;
 
 const JEST_HASTE_MAP_CACHE_BREAKER = 5;
 
-function getOrCreate<T>(
-  map: Map<string, Map<string, T>>,
-  field,
-): Map<string, T> {
+function getOrCreate(map, field) {
   let subMap = map.get(field);
+
   if (!subMap) {
     subMap = new Map();
     map.set(field, subMap);
   }
+
   return subMap;
 }
 
 class DependencyGraph extends EventEmitter {
-  _assetExtensions: Set<string>;
-  _config: ConfigT;
   // $FlowFixMe[value-as-type]
-  _haste: JestHasteMap;
-  _hasteFS: HasteFS;
-  _moduleCache: ModuleCache;
-  _moduleMap: ModuleMap;
-  _moduleResolver: ModuleResolver<Module, Package>;
-  _resolutionCache: Map<string, Map<string, Map<string, string>>>;
-
-  constructor({
-    config,
-    haste,
-    initialHasteFS,
-    initialModuleMap,
-  }: {|
-    +config: ConfigT,
-    // $FlowFixMe[value-as-type]
-    +haste: JestHasteMap,
-    +initialHasteFS: HasteFS,
-    +initialModuleMap: ModuleMap,
-  |}) {
+  constructor(_ref) {
+    let config = _ref.config,
+      haste = _ref.haste,
+      initialHasteFS = _ref.initialHasteFS,
+      initialModuleMap = _ref.initialModuleMap;
     super();
+
+    _defineProperty(this, "_doesFileExist", filePath => {
+      return this._hasteFS.exists(filePath);
+    });
+
     this._config = config;
     this._haste = haste;
     this._hasteFS = initialHasteFS;
     this._moduleMap = initialModuleMap;
     this._assetExtensions = new Set(
-      config.resolver.assetExts.map(asset => '.' + asset),
+      config.resolver.assetExts.map(asset => "." + asset)
     );
-    this._haste.on('change', this._onHasteChange.bind(this));
+
+    this._haste.on("change", this._onHasteChange.bind(this));
+
     this._resolutionCache = new Map();
     this._moduleCache = this._createModuleCache();
+
     this._createModuleResolver();
   }
 
-  static _getIgnorePattern(config: ConfigT): RegExp {
+  static _getIgnorePattern(config) {
     /*
       For now we support both blockList and blacklistRE options
     */
-    const {blockList, blacklistRE} = config.resolver;
+    const _config$resolver = config.resolver,
+      blockList = _config$resolver.blockList,
+      blacklistRE = _config$resolver.blacklistRE;
 
     const combine = regexes =>
       new RegExp(
         regexes
-          .map(regex => '(' + regex.source.replace(/\//g, path.sep) + ')')
-          .join('|'),
-      );
-
-    // If `blacklistRE` is set - use it,
+          .map(regex => "(" + regex.source.replace(/\//g, path.sep) + ")")
+          .join("|")
+      ); // If `blacklistRE` is set - use it,
     // if `blockList` is set - use it
-    const ignorePattern = blacklistRE || blockList;
 
-    // If neither option has been set, use default pattern
+    const ignorePattern = blacklistRE || blockList; // If neither option has been set, use default pattern
+
     if (!ignorePattern) {
       return / ^/;
-    }
+    } // If ignorePattern is an array, merge it into one
 
-    // If ignorePattern is an array, merge it into one
     if (Array.isArray(ignorePattern)) {
       return combine(ignorePattern);
     }
 
     return ignorePattern;
-  }
+  } // $FlowFixMe[value-as-type]
 
-  // $FlowFixMe[value-as-type]
-  static _createHaste(config: ConfigT, watch?: boolean): JestHasteMap {
+  static _createHaste(config, watch) {
     const haste = new JestHasteMap({
       cacheDirectory: config.hasteMapCacheDirectory,
       dependencyExtractor: config.resolver.dependencyExtractor,
@@ -126,8 +212,8 @@ class DependencyGraph extends EventEmitter {
       hasteImplModulePath: config.resolver.hasteImplModulePath,
       ignorePattern: this._getIgnorePattern(config),
       maxWorkers: config.maxWorkers,
-      mocksPattern: '',
-      name: 'metro-' + JEST_HASTE_MAP_CACHE_BREAKER,
+      mocksPattern: "",
+      name: "metro-" + JEST_HASTE_MAP_CACHE_BREAKER,
       platforms: config.resolver.platforms,
       retainAllFiles: true,
       resetCache: config.resetCache,
@@ -135,79 +221,93 @@ class DependencyGraph extends EventEmitter {
       roots: config.watchFolders,
       throwOnModuleCollision: true,
       useWatchman: config.resolver.useWatchman,
-      watch: watch == null ? !ci.isCI : watch,
-    });
-
-    // We can have a lot of graphs listening to Haste for changes.
+      watch: watch == null ? !ci.isCI : watch
+    }); // We can have a lot of graphs listening to Haste for changes.
     // Bump this up to silence the max listeners EventEmitter warning.
-    haste.setMaxListeners(1000);
 
+    haste.setMaxListeners(1000);
     return haste;
   }
 
-  static async load(
-    config: ConfigT,
-    options?: {|+hasReducedPerformance?: boolean, +watch?: boolean|},
-  ): Promise<DependencyGraph> {
-    const initializingMetroLogEntry = log(
-      createActionStartEntry('Initializing Metro'),
-    );
+  static load(config, options) {
+    return _asyncToGenerator(function*() {
+      const initializingMetroLogEntry = log(
+        createActionStartEntry("Initializing Metro")
+      );
+      config.reporter.update({
+        type: "dep_graph_loading",
+        hasReducedPerformance: options
+          ? Boolean(options.hasReducedPerformance)
+          : false
+      });
 
-    config.reporter.update({
-      type: 'dep_graph_loading',
-      hasReducedPerformance: options
-        ? Boolean(options.hasReducedPerformance)
-        : false,
-    });
-    const haste = DependencyGraph._createHaste(
-      config,
-      options && options.watch,
-    );
-    const {hasteFS, moduleMap} = await haste.build();
+      const haste = DependencyGraph._createHaste(
+        config,
+        options && options.watch
+      );
 
-    log(createActionEndEntry(initializingMetroLogEntry));
-    config.reporter.update({type: 'dep_graph_loaded'});
+      const _yield$haste$build = yield haste.build(),
+        hasteFS = _yield$haste$build.hasteFS,
+        moduleMap = _yield$haste$build.moduleMap;
 
-    return new DependencyGraph({
-      haste,
-      initialHasteFS: hasteFS,
-      initialModuleMap: moduleMap,
-      config,
-    });
+      log(createActionEndEntry(initializingMetroLogEntry));
+      config.reporter.update({
+        type: "dep_graph_loaded"
+      });
+      return new DependencyGraph({
+        haste,
+        initialHasteFS: hasteFS,
+        initialModuleMap: moduleMap,
+        config
+      });
+    })();
   }
 
-  _getClosestPackage(filePath: string): ?string {
-    const {root} = path.parse(filePath);
-    // The `filePath` may be a directory.
+  _getClosestPackage(filePath) {
+    const _path$parse = path.parse(filePath),
+      root = _path$parse.root; // The `filePath` may be a directory.
+
     let dir = filePath;
+
     do {
-      const candidate = path.join(dir, 'package.json');
+      const candidate = path.join(dir, "package.json");
+
       if (this._hasteFS.exists(candidate)) {
         return candidate;
       }
+
       dir = path.dirname(dir);
-    } while (dir !== '.' && dir !== root);
+    } while (dir !== "." && dir !== root);
+
     return null;
   }
 
-  _onHasteChange({eventsQueue, hasteFS, moduleMap}) {
+  _onHasteChange(_ref2) {
+    let eventsQueue = _ref2.eventsQueue,
+      hasteFS = _ref2.hasteFS,
+      moduleMap = _ref2.moduleMap;
     this._hasteFS = hasteFS;
     this._resolutionCache = new Map();
     this._moduleMap = moduleMap;
-    eventsQueue.forEach(({type, filePath}) =>
-      this._moduleCache.processFileChange(type, filePath),
-    );
+    eventsQueue.forEach(_ref3 => {
+      let type = _ref3.type,
+        filePath = _ref3.filePath;
+      return this._moduleCache.processFileChange(type, filePath);
+    });
+
     this._createModuleResolver();
-    this.emit('change');
+
+    this.emit("change");
   }
 
   _createModuleResolver() {
     this._moduleResolver = new ModuleResolver({
-      follow: (filePath: string) => this._hasteFS.follow(filePath),
-      dirExists: (filePath: string) => {
+      follow: filePath => this._hasteFS.follow(filePath),
+      dirExists: filePath => {
         try {
           return fs.lstatSync(filePath).isDirectory();
         } catch (e) {}
+
         return false;
       },
       doesFileExist: this._doesFileExist,
@@ -219,37 +319,37 @@ class DependencyGraph extends EventEmitter {
       nodeModulesPaths: this._config.resolver.nodeModulesPaths,
       preferNativePlatform: true,
       projectRoot: this._config.projectRoot,
-      resolveAsset: (dirPath: string, assetName: string, extension: string) => {
+      resolveAsset: (dirPath, assetName, extension) => {
         const basePath = dirPath + path.sep + assetName;
-        const assets = [
-          basePath + extension,
-          ...this._config.resolver.assetResolutions.map(
-            resolution => basePath + '@' + resolution + 'x' + extension,
-          ),
-        ].filter(candidate => this._hasteFS.exists(candidate));
+        const assets = [basePath + extension]
+          .concat(
+            _toConsumableArray(
+              this._config.resolver.assetResolutions.map(
+                resolution => basePath + "@" + resolution + "x" + extension
+              )
+            )
+          )
+          .filter(candidate => this._hasteFS.exists(candidate));
         return assets.length ? assets : null;
       },
       resolveRequest: this._config.resolver.resolveRequest,
-      sourceExts: this._config.resolver.sourceExts,
+      sourceExts: this._config.resolver.sourceExts
     });
   }
 
   _createModuleCache() {
     return new ModuleCache({
-      getClosestPackage: this._getClosestPackage.bind(this),
+      getClosestPackage: this._getClosestPackage.bind(this)
     });
   }
 
-  getSha1(filename: string): string {
+  getSha1(filename) {
     // TODO If it looks like we're trying to get the sha1 from a file located
     // within a Zip archive, then we instead compute the sha1 for what looks
     // like the Zip archive itself.
-
-    const splitIndex = filename.indexOf('.zip/');
+    const splitIndex = filename.indexOf(".zip/");
     const containerName =
-      splitIndex !== -1 ? filename.slice(0, splitIndex + 4) : filename;
-
-    // TODO Calling realpath allows us to get a hash for a given path even when
+      splitIndex !== -1 ? filename.slice(0, splitIndex + 4) : filename; // TODO Calling realpath allows us to get a hash for a given path even when
     // it's a symlink to a file, which prevents Metro from crashing in such a
     // case. However, it doesn't allow Metro to track changes to the target file
     // of the symlink. We should fix this by implementing a symlink map into
@@ -257,22 +357,20 @@ class DependencyGraph extends EventEmitter {
     // been talking about for stuff like CSS or WASM).
 
     const resolvedPath = fs.realpathSync(containerName);
+
     const sha1 = this._hasteFS.getSha1(resolvedPath);
 
     if (!sha1) {
-      throw new ReferenceError(
-        `SHA-1 for file ${filename} (${resolvedPath}) is not computed.
+      throw new ReferenceError(`SHA-1 for file ${filename} (${resolvedPath}) is not computed.
          Potential causes:
            1) You have symlinks in your project - watchman does not follow symlinks.
-           2) Check \`blockList\` in your metro.config.js and make sure it isn't excluding the file path.`,
-      );
+           2) Check \`blockList\` in your metro.config.js and make sure it isn't excluding the file path.`);
     }
 
     return sha1;
-  }
+  } // $FlowFixMe[value-as-type]
 
-  // $FlowFixMe[value-as-type]
-  getWatcher(): JestHasteMap {
+  getWatcher() {
     return this._haste;
   }
 
@@ -280,25 +378,27 @@ class DependencyGraph extends EventEmitter {
     this._haste.end();
   }
 
-  resolveDependency(
-    from: string,
-    to: string,
-    platform: string,
-    {assumeFlatNodeModules}: {assumeFlatNodeModules: boolean} = {
-      assumeFlatNodeModules: false,
-    },
-  ): string {
+  resolveDependency(from, to, platform) {
+    let _ref4 =
+        arguments.length > 3 && arguments[3] !== undefined
+          ? arguments[3]
+          : {
+              assumeFlatNodeModules: false
+            },
+      assumeFlatNodeModules = _ref4.assumeFlatNodeModules;
+
     const isPath =
-      to.includes('/') ||
-      to === '.' ||
-      to === '..' ||
-      from.includes(path.sep + 'node_modules' + path.sep);
+      to.includes("/") ||
+      to === "." ||
+      to === ".." ||
+      from.includes(path.sep + "node_modules" + path.sep);
     const mapByDirectory = getOrCreate(
       this._resolutionCache,
-      isPath ? path.dirname(from) : '',
+      isPath ? path.dirname(from) : ""
     );
     let mapByPlatform = getOrCreate(mapByDirectory, to);
     let modulePath = mapByPlatform.get(platform);
+
     if (!modulePath) {
       modulePath = this._moduleMap.getModule(to, platform, true);
     }
@@ -309,31 +409,32 @@ class DependencyGraph extends EventEmitter {
           this._moduleCache.getModule(from),
           to,
           true,
-          platform,
-        ).path;
-
-        // If we cannot assume that only one node_modules folder exists in the project,
+          platform
+        ).path; // If we cannot assume that only one node_modules folder exists in the project,
         // we need to cache packages by directory instead of globally.
+
         if (
           !assumeFlatNodeModules &&
-          modulePath.includes(path.sep + 'node_modules' + path.sep)
+          modulePath.includes(path.sep + "node_modules" + path.sep)
         ) {
           mapByPlatform = getOrCreate(
             getOrCreate(this._resolutionCache, path.dirname(from)),
-            to,
+            to
           );
         }
       } catch (error) {
         if (error instanceof DuplicateHasteCandidatesError) {
           throw new AmbiguousModuleResolutionError(from, error);
         }
+
         if (error instanceof InvalidPackageError) {
           throw new PackageResolutionError({
             packageError: error,
             originModulePath: from,
-            targetModuleName: to,
+            targetModuleName: to
           });
         }
+
         throw error;
       }
     }
@@ -342,11 +443,7 @@ class DependencyGraph extends EventEmitter {
     return modulePath;
   }
 
-  _doesFileExist = (filePath: string): boolean => {
-    return this._hasteFS.exists(filePath);
-  };
-
-  getHasteName(filePath: string): string {
+  getHasteName(filePath) {
     const hasteName = this._hasteFS.getModuleName(filePath);
 
     if (hasteName) {
@@ -356,7 +453,7 @@ class DependencyGraph extends EventEmitter {
     return path.relative(this._config.projectRoot, filePath);
   }
 
-  getDependencies(filePath: string): Array<string> {
+  getDependencies(filePath) {
     return this._hasteFS.getDependencies(filePath);
   }
 }

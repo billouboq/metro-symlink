@@ -5,11 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
-
-'use strict';
+"use strict";
 
 module.exports = {
-  foo: 'export-5: FOO',
+  foo: "export-5: FOO"
 };

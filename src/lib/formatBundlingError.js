@@ -5,114 +5,112 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow
+ *
  */
+"use strict";
 
-'use strict';
+const ErrorStackParser = require("error-stack-parser");
 
-const ErrorStackParser = require('error-stack-parser');
-const GraphNotFoundError = require('../IncrementalBundler/GraphNotFoundError');
-const ResourceNotFoundError = require('../IncrementalBundler/ResourceNotFoundError');
-const RevisionNotFoundError = require('../IncrementalBundler/RevisionNotFoundError');
+const GraphNotFoundError = require("../IncrementalBundler/GraphNotFoundError");
 
-const fs = require('fs');
-const serializeError = require('serialize-error');
+const ResourceNotFoundError = require("../IncrementalBundler/ResourceNotFoundError");
 
-const {
-  UnableToResolveError,
-} = require('../node-haste/DependencyGraph/ModuleResolution');
-const {codeFrameColumns} = require('@babel/code-frame');
-const {AmbiguousModuleResolutionError} = require('metro-core');
+const RevisionNotFoundError = require("../IncrementalBundler/RevisionNotFoundError");
 
-import type {FormattedError} from 'metro-runtime/src/modules/types.flow';
+const fs = require("fs");
 
-export type CustomError = Error & {
-  type?: string,
-  filename?: string,
-  lineNumber?: number,
-  errors?: Array<{
-    description: string,
-    filename: string,
-    lineNumber: number,
-    ...
-  }>,
-  ...
-};
+const serializeError = require("serialize-error");
 
-function formatBundlingError(error: CustomError): FormattedError {
+const _require = require("../node-haste/DependencyGraph/ModuleResolution"),
+  UnableToResolveError = _require.UnableToResolveError;
+
+const _require2 = require("@babel/code-frame"),
+  codeFrameColumns = _require2.codeFrameColumns;
+
+const _require3 = require("metro-core"),
+  AmbiguousModuleResolutionError = _require3.AmbiguousModuleResolutionError;
+
+function formatBundlingError(error) {
   if (error instanceof AmbiguousModuleResolutionError) {
     const he = error.hasteError;
     const message =
       "Ambiguous resolution: module '" +
       `${error.fromModulePath}\' tries to require \'${he.hasteName}\', but ` +
-      'there are several files providing this module. You can delete or ' +
-      'fix them: \n\n' +
+      "there are several files providing this module. You can delete or " +
+      "fix them: \n\n" +
       Object.keys(he.duplicatesSet)
         .sort()
         .map(dupFilePath => `${dupFilePath}`)
-        .join('\n\n');
-
+        .join("\n\n");
     return {
-      type: 'AmbiguousModuleResolutionError',
+      type: "AmbiguousModuleResolutionError",
       message,
-      errors: [{description: message}],
+      errors: [
+        {
+          description: message
+        }
+      ]
     };
   }
 
   if (
     error instanceof UnableToResolveError ||
     (error instanceof Error &&
-      (error.type === 'TransformError' || error.type === 'NotFoundError'))
+      (error.type === "TransformError" || error.type === "NotFoundError"))
   ) {
     error.errors = [
       {
         description: error.message,
         filename: error.filename,
-        lineNumber: error.lineNumber,
-      },
+        lineNumber: error.lineNumber
+      }
     ];
-
     return serializeError(error);
   } else if (error instanceof ResourceNotFoundError) {
     return {
-      type: 'ResourceNotFoundError',
+      type: "ResourceNotFoundError",
       errors: [],
-      message: error.message,
+      message: error.message
     };
   } else if (error instanceof GraphNotFoundError) {
     return {
-      type: 'GraphNotFoundError',
+      type: "GraphNotFoundError",
       errors: [],
-      message: error.message,
+      message: error.message
     };
   } else if (error instanceof RevisionNotFoundError) {
     return {
-      type: 'RevisionNotFoundError',
+      type: "RevisionNotFoundError",
       errors: [],
-      message: error.message,
+      message: error.message
     };
   } else {
     const stack = ErrorStackParser.parse(error);
     const fileName = stack[0].fileName;
     const column = stack[0].columnNumber;
     const line = stack[0].lineNumber;
+    let codeFrame = "";
 
-    let codeFrame = '';
     try {
       codeFrame = codeFrameColumns(
         // If the error was thrown in a node.js builtin module, this call will fail and mask the real error.
-        fs.readFileSync(fileName, 'utf8'),
+        fs.readFileSync(fileName, "utf8"),
         {
-          start: {column, line},
+          start: {
+            column,
+            line
+          }
         },
-        {forceColor: true},
+        {
+          forceColor: true
+        }
       );
     } catch {}
 
     return {
-      type: 'InternalError',
+      type: "InternalError",
       errors: [],
-      message: `Metro has encountered an error: ${error.message}: ${fileName} (${line}:${column})\n\n${codeFrame}`,
+      message: `Metro has encountered an error: ${error.message}: ${fileName} (${line}:${column})\n\n${codeFrame}`
     };
   }
 }

@@ -4,76 +4,66 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+var _invariant = _interopRequireDefault(require("invariant"));
 
-import type {NodePath} from '@babel/traverse';
-import typeof * as Types from '@babel/types';
-import type {CallExpression} from '@babel/types';
-import invariant from 'invariant';
-import nullthrows from 'nullthrows';
+var _nullthrows = _interopRequireDefault(require("nullthrows"));
 
-type State = {|
-  opts: {|
-    +dependencyIds: $ReadOnlyArray<number>,
-    +globalPrefix: string,
-  |},
-|};
+function _interopRequireDefault(obj) {
+  return obj && obj.__esModule ? obj : { default: obj };
+}
 
-function reverseDependencyMapReferences({
-  types: t,
-}: {
-  types: Types,
-  ...
-}): {|
-  visitor: {|
-    CallExpression: (path: NodePath<CallExpression>, state: State) => void,
-  |},
-|} {
+function reverseDependencyMapReferences(_ref) {
+  let t = _ref.types;
   return {
     visitor: {
-      CallExpression(path: NodePath<CallExpression>, state: State) {
-        const {node} = path;
+      CallExpression(path, state) {
+        const node = path.node;
 
         if (node.callee.name === `${state.opts.globalPrefix}__d`) {
           // $FlowFixMe Flow error uncovered by typing Babel more strictly
-          const lastArg = node.arguments[0].params.slice(-1)[0];
-          // $FlowFixMe Flow error uncovered by typing Babel more strictly
-          const depMapName: ?string = lastArg && lastArg.name;
+          const lastArg = node.arguments[0].params.slice(-1)[0]; // $FlowFixMe Flow error uncovered by typing Babel more strictly
+
+          const depMapName = lastArg && lastArg.name;
 
           if (depMapName == null) {
             return;
           }
 
-          const body = path.get('arguments.0.body');
-          invariant(
+          const body = path.get("arguments.0.body");
+          (0, _invariant.default)(
             !Array.isArray(body),
-            'meetro: Expected `body` to be a single path.',
+            "meetro: Expected `body` to be a single path."
           );
-
           const scope = body.scope;
-          const binding = nullthrows(scope.getBinding(depMapName));
-
-          binding.referencePaths.forEach(({parentPath}) => {
-            const memberNode = parentPath?.node;
+          const binding = (0, _nullthrows.default)(
+            scope.getBinding(depMapName)
+          );
+          binding.referencePaths.forEach(_ref2 => {
+            let parentPath = _ref2.parentPath;
+            const memberNode =
+              parentPath === null || parentPath === void 0
+                ? void 0
+                : parentPath.node;
 
             if (
               memberNode != null &&
-              memberNode.type === 'MemberExpression' &&
-              memberNode.property.type === 'NumericLiteral'
+              memberNode.type === "MemberExpression" &&
+              memberNode.property.type === "NumericLiteral"
             ) {
               const numericLiteral = t.numericLiteral(
-                state.opts.dependencyIds[memberNode.property.value],
+                state.opts.dependencyIds[memberNode.property.value]
               );
-              nullthrows(parentPath).replaceWith(numericLiteral);
+              (0, _nullthrows.default)(parentPath).replaceWith(numericLiteral);
             }
           });
         }
-      },
-    },
+      }
+    }
   };
 }
 

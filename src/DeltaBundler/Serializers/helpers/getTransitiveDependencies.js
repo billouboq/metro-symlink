@@ -4,32 +4,20 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
-
-import type {Graph} from '../../types.flow';
-
-function getTransitiveDependencies<T>(
-  path: string,
-  graph: Graph<T>,
-): Set<string> {
-  const dependencies = _getDeps(path, graph, new Set());
-
-  // Remove the main entry point, since this method only returns the
+function getTransitiveDependencies(path, graph) {
+  const dependencies = _getDeps(path, graph, new Set()); // Remove the main entry point, since this method only returns the
   // dependencies.
-  dependencies.delete(path);
 
+  dependencies.delete(path);
   return dependencies;
 }
 
-function _getDeps<T>(
-  path: string,
-  graph: Graph<T>,
-  deps: Set<string>,
-): Set<string> {
+function _getDeps(path, graph, deps) {
   if (deps.has(path)) {
     return deps;
   }

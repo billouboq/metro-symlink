@@ -5,11 +5,15 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
+"use strict";
 
-'use strict';
-
-export default 'export-6: DEFAULT';
-
-export const foo = 'export-6: FOO';
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.foo = exports.default = void 0;
+var _default = "export-6: DEFAULT";
+exports.default = _default;
+const foo = "export-6: FOO";
+exports.foo = foo;

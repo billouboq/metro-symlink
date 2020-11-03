@@ -4,13 +4,11 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+const path = require("path");
 
-const path = require('path');
-
-module.exports = (file: string, roots: $ReadOnlyArray<string>): string =>
-  path.resolve(roots[0], file);
+module.exports = (file, roots) => path.resolve(roots[0], file);

@@ -4,47 +4,69 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
 
-const {
-  sourceMapGenerator,
-  sourceMapGeneratorNonBlocking,
-} = require('./sourceMapGenerator');
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
 
-import type {Module} from '../types.flow';
-import type {MixedSourceMap} from 'metro-source-map';
+const _require = require("./sourceMapGenerator"),
+  sourceMapGenerator = _require.sourceMapGenerator,
+  sourceMapGeneratorNonBlocking = _require.sourceMapGeneratorNonBlocking;
 
-function sourceMapObject(
-  modules: $ReadOnlyArray<Module<>>,
-  options: {|
-    +excludeSource: boolean,
-    +processModuleFilter: (module: Module<>) => boolean,
-  |},
-): MixedSourceMap {
+function sourceMapObject(modules, options) {
   const generator = sourceMapGenerator(modules, options);
   return generator.toMap(undefined, {
-    excludeSource: options.excludeSource,
+    excludeSource: options.excludeSource
   });
 }
 
-async function sourceMapObjectNonBlocking(
-  modules: $ReadOnlyArray<Module<>>,
-  options: {|
-    +excludeSource: boolean,
-    +processModuleFilter: (module: Module<>) => boolean,
-  |},
-): Promise<MixedSourceMap> {
-  const generator = await sourceMapGeneratorNonBlocking(modules, options);
-  return generator.toMap(undefined, {
-    excludeSource: options.excludeSource,
+function sourceMapObjectNonBlocking(_x, _x2) {
+  return _sourceMapObjectNonBlocking.apply(this, arguments);
+}
+
+function _sourceMapObjectNonBlocking() {
+  _sourceMapObjectNonBlocking = _asyncToGenerator(function*(modules, options) {
+    const generator = yield sourceMapGeneratorNonBlocking(modules, options);
+    return generator.toMap(undefined, {
+      excludeSource: options.excludeSource
+    });
   });
+  return _sourceMapObjectNonBlocking.apply(this, arguments);
 }
 
 module.exports = {
   sourceMapObject,
-  sourceMapObjectNonBlocking,
+  sourceMapObjectNonBlocking
 };

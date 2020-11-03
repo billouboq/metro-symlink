@@ -4,20 +4,14 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow strict-local
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+const path = require("path");
 
-const path = require('path');
-
-import type {MixedSourceMap} from 'metro-source-map';
-
-function relativizeSourceMapInline(
-  sourceMap: MixedSourceMap,
-  sourcesRoot: string,
-): void {
+function relativizeSourceMapInline(sourceMap, sourcesRoot) {
   // eslint-disable-next-line lint/strictly-null
   if (sourceMap.mappings === undefined) {
     for (let i = 0; i < sourceMap.sections.length; i++) {

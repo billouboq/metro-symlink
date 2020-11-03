@@ -5,14 +5,18 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow strict
+ *
  */
+"use strict";
 
-'use strict';
+const Bar = require("./Bar");
 
-const Bar = require('./Bar');
-const Foo = require('./Foo');
-// $FlowFixMe: Flow doesn't understand TypeScript
-const TypeScript = require('./TypeScript');
+const Foo = require("./Foo"); // $FlowFixMe: Flow doesn't understand TypeScript
 
-module.exports = {Foo, Bar, TypeScript};
+const TypeScript = require("./TypeScript");
+
+module.exports = {
+  Foo,
+  Bar,
+  TypeScript
+};

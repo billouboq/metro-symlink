@@ -4,333 +4,457 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
-
-const Bundler = require('./Bundler');
-const DeltaBundler = require('./DeltaBundler');
-const ResourceNotFoundError = require('./IncrementalBundler/ResourceNotFoundError');
-
-const crypto = require('crypto');
-const fs = require('fs');
-const getGraphId = require('./lib/getGraphId');
-const getPrependedScripts = require('./lib/getPrependedScripts');
-const path = require('path');
-const transformHelpers = require('./lib/transformHelpers');
-
-import type {
-  Options as DeltaBundlerOptions,
-  Dependencies,
-} from './DeltaBundler/types.flow';
-import type {DeltaResult, Module, Graph} from './DeltaBundler';
-import type {GraphId} from './lib/getGraphId';
-import type {TransformInputOptions} from './lib/transformHelpers';
-import type {ConfigT} from 'metro-config/src/configTypes.flow';
-
-export opaque type RevisionId: string = string;
-
-export type OutputGraph = Graph<>;
-
-type OtherOptions = {|
-  +onProgress: $PropertyType<DeltaBundlerOptions<>, 'onProgress'>,
-  +shallow: boolean,
-|};
-
-export type GraphRevision = {|
-  // Identifies the last computed revision.
-  +id: RevisionId,
-  +date: Date,
-  +graphId: GraphId,
-  +graph: OutputGraph,
-  +prepend: $ReadOnlyArray<Module<>>,
-|};
-
-export type IncrementalBundlerOptions = $ReadOnly<{|
-  hasReducedPerformance?: boolean,
-  watch?: boolean,
-|}>;
-
-function createRevisionId(): RevisionId {
-  return crypto.randomBytes(8).toString('hex');
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly)
+      symbols = symbols.filter(function(sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+    keys.push.apply(keys, symbols);
+  }
+  return keys;
 }
 
-function revisionIdFromString(str: string): RevisionId {
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys(Object(source), true).forEach(function(key) {
+        _defineProperty(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(Object(source)).forEach(function(key) {
+        Object.defineProperty(
+          target,
+          key,
+          Object.getOwnPropertyDescriptor(source, key)
+        );
+      });
+    }
+  }
+  return target;
+}
+
+function _objectWithoutProperties(source, excluded) {
+  if (source == null) return {};
+  var target = _objectWithoutPropertiesLoose(source, excluded);
+  var key, i;
+  if (Object.getOwnPropertySymbols) {
+    var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
+    for (i = 0; i < sourceSymbolKeys.length; i++) {
+      key = sourceSymbolKeys[i];
+      if (excluded.indexOf(key) >= 0) continue;
+      if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function _objectWithoutPropertiesLoose(source, excluded) {
+  if (source == null) return {};
+  var target = {};
+  var sourceKeys = Object.keys(source);
+  var key, i;
+  for (i = 0; i < sourceKeys.length; i++) {
+    key = sourceKeys[i];
+    if (excluded.indexOf(key) >= 0) continue;
+    target[key] = source[key];
+  }
+  return target;
+}
+
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
+
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+
+const Bundler = require("./Bundler");
+
+const DeltaBundler = require("./DeltaBundler");
+
+const ResourceNotFoundError = require("./IncrementalBundler/ResourceNotFoundError");
+
+const crypto = require("crypto");
+
+const fs = require("fs");
+
+const getGraphId = require("./lib/getGraphId");
+
+const getPrependedScripts = require("./lib/getPrependedScripts");
+
+const path = require("path");
+
+const transformHelpers = require("./lib/transformHelpers");
+
+function createRevisionId() {
+  return crypto.randomBytes(8).toString("hex");
+}
+
+function revisionIdFromString(str) {
   return str;
 }
 
 class IncrementalBundler {
-  _config: ConfigT;
-  _bundler: Bundler;
-  _deltaBundler: DeltaBundler<>;
-  _revisionsById: Map<RevisionId, Promise<GraphRevision>> = new Map();
-  _revisionsByGraphId: Map<GraphId, Promise<GraphRevision>> = new Map();
+  constructor(config, options) {
+    _defineProperty(this, "_revisionsById", new Map());
 
-  static revisionIdFromString: (
-    str: string,
-  ) => RevisionId = revisionIdFromString;
+    _defineProperty(this, "_revisionsByGraphId", new Map());
 
-  constructor(config: ConfigT, options?: IncrementalBundlerOptions) {
     this._config = config;
     this._bundler = new Bundler(config, options);
     this._deltaBundler = new DeltaBundler(this._bundler);
   }
 
-  end(): void {
+  end() {
     this._deltaBundler.end();
+
     this._bundler.end();
   }
 
-  getBundler(): Bundler {
+  getBundler() {
     return this._bundler;
   }
 
-  getDeltaBundler(): DeltaBundler<> {
+  getDeltaBundler() {
     return this._deltaBundler;
   }
 
-  getRevision(revisionId: RevisionId): ?Promise<GraphRevision> {
+  getRevision(revisionId) {
     return this._revisionsById.get(revisionId);
   }
 
-  getRevisionByGraphId(graphId: GraphId): ?Promise<GraphRevision> {
+  getRevisionByGraphId(graphId) {
     return this._revisionsByGraphId.get(graphId);
   }
 
-  async buildGraphForEntries(
-    entryFiles: $ReadOnlyArray<string>,
-    transformOptions: TransformInputOptions,
-    otherOptions?: OtherOptions = {
-      onProgress: null,
-      shallow: false,
-    },
-  ): Promise<OutputGraph> {
-    const absoluteEntryFiles = await this._getAbsoluteEntryFiles(entryFiles);
+  buildGraphForEntries(entryFiles, transformOptions) {
+    var _this = this;
 
-    const graph = await this._deltaBundler.buildGraph(absoluteEntryFiles, {
-      resolve: await transformHelpers.getResolveDependencyFn(
-        this._bundler,
-        transformOptions.platform,
-      ),
-      transform: await transformHelpers.getTransformFn(
-        absoluteEntryFiles,
-        this._bundler,
-        this._deltaBundler,
-        this._config,
-        transformOptions,
-      ),
-      onProgress: otherOptions.onProgress,
-      experimentalImportBundleSupport: this._config.transformer
-        .experimentalImportBundleSupport,
-      shallow: otherOptions.shallow,
-    });
-
-    this._config.serializer.experimentalSerializerHook(graph, {
-      added: graph.dependencies,
-      modified: new Map(),
-      deleted: new Set(),
-      reset: true,
-    });
-
-    return graph;
-  }
-
-  async getDependencies(
-    entryFiles: $ReadOnlyArray<string>,
-    transformOptions: TransformInputOptions,
-    otherOptions?: OtherOptions = {
-      onProgress: null,
-      shallow: false,
-    },
-  ): Promise<Dependencies<>> {
-    const absoluteEntryFiles = await this._getAbsoluteEntryFiles(entryFiles);
-
-    const dependencies = await this._deltaBundler.getDependencies(
-      absoluteEntryFiles,
-      {
-        resolve: await transformHelpers.getResolveDependencyFn(
-          this._bundler,
-          transformOptions.platform,
+    let otherOptions =
+      arguments.length > 2 && arguments[2] !== undefined
+        ? arguments[2]
+        : {
+            onProgress: null,
+            shallow: false
+          };
+    return _asyncToGenerator(function*() {
+      const absoluteEntryFiles = yield _this._getAbsoluteEntryFiles(entryFiles);
+      const graph = yield _this._deltaBundler.buildGraph(absoluteEntryFiles, {
+        resolve: yield transformHelpers.getResolveDependencyFn(
+          _this._bundler,
+          transformOptions.platform
         ),
-        transform: await transformHelpers.getTransformFn(
+        transform: yield transformHelpers.getTransformFn(
           absoluteEntryFiles,
-          this._bundler,
-          this._deltaBundler,
-          this._config,
-          transformOptions,
+          _this._bundler,
+          _this._deltaBundler,
+          _this._config,
+          transformOptions
         ),
         onProgress: otherOptions.onProgress,
-        experimentalImportBundleSupport: this._config.transformer
-          .experimentalImportBundleSupport,
-        shallow: otherOptions.shallow,
-      },
-    );
+        experimentalImportBundleSupport:
+          _this._config.transformer.experimentalImportBundleSupport,
+        shallow: otherOptions.shallow
+      });
 
-    return dependencies;
-  }
-
-  async buildGraph(
-    entryFile: string,
-    transformOptions: TransformInputOptions,
-    otherOptions?: OtherOptions = {
-      onProgress: null,
-      shallow: false,
-    },
-  ): Promise<{|+graph: OutputGraph, +prepend: $ReadOnlyArray<Module<>>|}> {
-    const graph = await this.buildGraphForEntries(
-      [entryFile],
-      transformOptions,
-      otherOptions,
-    );
-
-    const {type: _, ...transformOptionsWithoutType} = transformOptions;
-
-    const prepend = await getPrependedScripts(
-      this._config,
-      transformOptionsWithoutType,
-      this._bundler,
-      this._deltaBundler,
-    );
-
-    return {
-      prepend,
-      graph,
-    };
-  }
-
-  // TODO T34760750 (alexkirsz) Eventually, I'd like to get to a point where
-  // this class exposes only initializeGraph and updateGraph.
-  async initializeGraph(
-    entryFile: string,
-    transformOptions: TransformInputOptions,
-    otherOptions?: OtherOptions = {
-      onProgress: null,
-      shallow: false,
-    },
-  ): Promise<{
-    delta: DeltaResult<>,
-    revision: GraphRevision,
-    ...
-  }> {
-    const graphId = getGraphId(entryFile, transformOptions, {
-      shallow: otherOptions.shallow,
-      experimentalImportBundleSupport: this._config.transformer
-        .experimentalImportBundleSupport,
-    });
-    const revisionId = createRevisionId();
-    const revisionPromise = (async () => {
-      const {graph, prepend} = await this.buildGraph(
-        entryFile,
-        transformOptions,
-        otherOptions,
-      );
-      return {
-        id: revisionId,
-        date: new Date(),
-        graphId,
-        graph,
-        prepend,
-      };
-    })();
-
-    this._revisionsById.set(revisionId, revisionPromise);
-    this._revisionsByGraphId.set(graphId, revisionPromise);
-    try {
-      const revision = await revisionPromise;
-      const delta = {
-        added: revision.graph.dependencies,
+      _this._config.serializer.experimentalSerializerHook(graph, {
+        added: graph.dependencies,
         modified: new Map(),
         deleted: new Set(),
-        reset: true,
+        reset: true
+      });
+
+      return graph;
+    })();
+  }
+
+  getDependencies(entryFiles, transformOptions) {
+    var _this2 = this;
+
+    let otherOptions =
+      arguments.length > 2 && arguments[2] !== undefined
+        ? arguments[2]
+        : {
+            onProgress: null,
+            shallow: false
+          };
+    return _asyncToGenerator(function*() {
+      const absoluteEntryFiles = yield _this2._getAbsoluteEntryFiles(
+        entryFiles
+      );
+      const dependencies = yield _this2._deltaBundler.getDependencies(
+        absoluteEntryFiles,
+        {
+          resolve: yield transformHelpers.getResolveDependencyFn(
+            _this2._bundler,
+            transformOptions.platform
+          ),
+          transform: yield transformHelpers.getTransformFn(
+            absoluteEntryFiles,
+            _this2._bundler,
+            _this2._deltaBundler,
+            _this2._config,
+            transformOptions
+          ),
+          onProgress: otherOptions.onProgress,
+          experimentalImportBundleSupport:
+            _this2._config.transformer.experimentalImportBundleSupport,
+          shallow: otherOptions.shallow
+        }
+      );
+      return dependencies;
+    })();
+  }
+
+  buildGraph(entryFile, transformOptions) {
+    var _this3 = this;
+
+    let otherOptions =
+      arguments.length > 2 && arguments[2] !== undefined
+        ? arguments[2]
+        : {
+            onProgress: null,
+            shallow: false
+          };
+    return _asyncToGenerator(function*() {
+      const graph = yield _this3.buildGraphForEntries(
+        [entryFile],
+        transformOptions,
+        otherOptions
+      );
+
+      const _ = transformOptions.type,
+        transformOptionsWithoutType = _objectWithoutProperties(
+          transformOptions,
+          ["type"]
+        );
+
+      const prepend = yield getPrependedScripts(
+        _this3._config,
+        transformOptionsWithoutType,
+        _this3._bundler,
+        _this3._deltaBundler
+      );
+      return {
+        prepend,
+        graph
       };
+    })();
+  } // TODO T34760750 (alexkirsz) Eventually, I'd like to get to a point where
+  // this class exposes only initializeGraph and updateGraph.
+
+  initializeGraph(entryFile, transformOptions) {
+    var _this4 = this;
+
+    let otherOptions =
+      arguments.length > 2 && arguments[2] !== undefined
+        ? arguments[2]
+        : {
+            onProgress: null,
+            shallow: false
+          };
+    return _asyncToGenerator(function*() {
+      const graphId = getGraphId(entryFile, transformOptions, {
+        shallow: otherOptions.shallow,
+        experimentalImportBundleSupport:
+          _this4._config.transformer.experimentalImportBundleSupport
+      });
+      const revisionId = createRevisionId();
+
+      const revisionPromise = _asyncToGenerator(function*() {
+        const _yield$_this4$buildGr = yield _this4.buildGraph(
+            entryFile,
+            transformOptions,
+            otherOptions
+          ),
+          graph = _yield$_this4$buildGr.graph,
+          prepend = _yield$_this4$buildGr.prepend;
+
+        return {
+          id: revisionId,
+          date: new Date(),
+          graphId,
+          graph,
+          prepend
+        };
+      })();
+
+      _this4._revisionsById.set(revisionId, revisionPromise);
+
+      _this4._revisionsByGraphId.set(graphId, revisionPromise);
+
+      try {
+        const revision = yield revisionPromise;
+        const delta = {
+          added: revision.graph.dependencies,
+          modified: new Map(),
+          deleted: new Set(),
+          reset: true
+        };
+        return {
+          revision,
+          delta
+        };
+      } catch (err) {
+        // Evict a bad revision from the cache since otherwise
+        // we'll keep getting it even after the build is fixed.
+        _this4._revisionsById.delete(revisionId);
+
+        _this4._revisionsByGraphId.delete(graphId);
+
+        throw err;
+      }
+    })();
+  }
+
+  updateGraph(revision, reset) {
+    var _this5 = this;
+
+    return _asyncToGenerator(function*() {
+      const delta = yield _this5._deltaBundler.getDelta(revision.graph, {
+        reset,
+        shallow: false
+      });
+
+      _this5._config.serializer.experimentalSerializerHook(
+        revision.graph,
+        delta
+      );
+
+      if (
+        delta.added.size > 0 ||
+        delta.modified.size > 0 ||
+        delta.deleted.size > 0
+      ) {
+        _this5._revisionsById.delete(revision.id);
+
+        revision = _objectSpread(
+          _objectSpread({}, revision),
+          {},
+          {
+            // Generate a new revision id, to be used to verify the next incremental
+            // request.
+            id: crypto.randomBytes(8).toString("hex"),
+            date: new Date()
+          }
+        );
+        const revisionPromise = Promise.resolve(revision);
+
+        _this5._revisionsById.set(revision.id, revisionPromise);
+
+        _this5._revisionsByGraphId.set(revision.graphId, revisionPromise);
+      }
+
       return {
         revision,
-        delta,
+        delta
       };
-    } catch (err) {
-      // Evict a bad revision from the cache since otherwise
-      // we'll keep getting it even after the build is fixed.
-      this._revisionsById.delete(revisionId);
-      this._revisionsByGraphId.delete(graphId);
-      throw err;
-    }
+    })();
   }
 
-  async updateGraph(
-    revision: GraphRevision,
-    reset: boolean,
-  ): Promise<{
-    delta: DeltaResult<>,
-    revision: GraphRevision,
-    ...
-  }> {
-    const delta = await this._deltaBundler.getDelta(revision.graph, {
-      reset,
-      shallow: false,
-    });
+  endGraph(graphId) {
+    var _this6 = this;
 
-    this._config.serializer.experimentalSerializerHook(revision.graph, delta);
+    return _asyncToGenerator(function*() {
+      const revPromise = _this6._revisionsByGraphId.get(graphId);
 
-    if (
-      delta.added.size > 0 ||
-      delta.modified.size > 0 ||
-      delta.deleted.size > 0
-    ) {
-      this._revisionsById.delete(revision.id);
-      revision = {
-        ...revision,
-        // Generate a new revision id, to be used to verify the next incremental
-        // request.
-        id: crypto.randomBytes(8).toString('hex'),
-        date: new Date(),
-      };
-      const revisionPromise = Promise.resolve(revision);
-      this._revisionsById.set(revision.id, revisionPromise);
-      this._revisionsByGraphId.set(revision.graphId, revisionPromise);
-    }
+      if (!revPromise) {
+        return;
+      }
 
-    return {revision, delta};
+      const revision = yield revPromise;
+
+      _this6._deltaBundler.endGraph(revision.graph);
+
+      _this6._revisionsByGraphId.delete(graphId);
+
+      _this6._revisionsById.delete(revision.id);
+    })();
   }
 
-  async endGraph(graphId: GraphId): Promise<void> {
-    const revPromise = this._revisionsByGraphId.get(graphId);
-    if (!revPromise) {
-      return;
-    }
-    const revision = await revPromise;
-    this._deltaBundler.endGraph(revision.graph);
-    this._revisionsByGraphId.delete(graphId);
-    this._revisionsById.delete(revision.id);
-  }
+  _getAbsoluteEntryFiles(entryFiles) {
+    var _this7 = this;
 
-  async _getAbsoluteEntryFiles(
-    entryFiles: $ReadOnlyArray<string>,
-  ): Promise<$ReadOnlyArray<string>> {
-    const absoluteEntryFiles = entryFiles.map((entryFile: string) =>
-      path.resolve(this._config.projectRoot, entryFile),
-    );
-
-    await Promise.all(
-      absoluteEntryFiles.map(
-        (entryFile: string) =>
-          new Promise((resolve: void => void, reject: mixed => mixed) => {
-            // This should throw an error if the file doesn't exist.
-            // Using this instead of fs.exists to account for SimLinks.
-            fs.realpath(entryFile, err => {
-              if (err) {
-                reject(new ResourceNotFoundError(entryFile));
-              } else {
-                resolve();
-              }
-            });
-          }),
-      ),
-    );
-
-    return absoluteEntryFiles;
+    return _asyncToGenerator(function*() {
+      const absoluteEntryFiles = entryFiles.map(entryFile =>
+        path.resolve(_this7._config.projectRoot, entryFile)
+      );
+      yield Promise.all(
+        absoluteEntryFiles.map(
+          entryFile =>
+            new Promise((resolve, reject) => {
+              // This should throw an error if the file doesn't exist.
+              // Using this instead of fs.exists to account for SimLinks.
+              fs.realpath(entryFile, err => {
+                if (err) {
+                  reject(new ResourceNotFoundError(entryFile));
+                } else {
+                  resolve();
+                }
+              });
+            })
+        )
+      );
+      return absoluteEntryFiles;
+    })();
   }
 }
+
+_defineProperty(
+  IncrementalBundler,
+  "revisionIdFromString",
+  revisionIdFromString
+);
 
 module.exports = IncrementalBundler;

@@ -4,30 +4,59 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ *
  * @format
  */
+"use strict";
 
-'use strict';
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+  try {
+    var info = gen[key](arg);
+    var value = info.value;
+  } catch (error) {
+    reject(error);
+    return;
+  }
+  if (info.done) {
+    resolve(value);
+  } else {
+    Promise.resolve(value).then(_next, _throw);
+  }
+}
 
-const fs = require('fs-extra');
+function _asyncToGenerator(fn) {
+  return function() {
+    var self = this,
+      args = arguments;
+    return new Promise(function(resolve, reject) {
+      var gen = fn.apply(self, args);
+      function _next(value) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+      }
+      function _throw(err) {
+        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+      }
+      _next(undefined);
+    });
+  };
+}
 
-import type {YargArguments} from 'metro-config/src/configTypes.flow';
+const fs = require("fs-extra");
 
-exports.watchFile = async function(
-  filename: string,
-  callback: () => *,
-): Promise<void> {
-  fs.watchFile(filename, () => {
-    callback();
+exports.watchFile = /*#__PURE__*/ (function() {
+  var _ref = _asyncToGenerator(function*(filename, callback) {
+    fs.watchFile(filename, () => {
+      callback();
+    });
+    yield callback();
   });
 
-  await callback();
-};
+  return function(_x, _x2) {
+    return _ref.apply(this, arguments);
+  };
+})();
 
-exports.makeAsyncCommand = (
-  command: (argv: YargArguments) => Promise<*>,
-): ((argv: YargArguments) => void) => (argv: YargArguments) => {
+exports.makeAsyncCommand = command => argv => {
   Promise.resolve(command(argv)).catch(error => {
     console.error(error.stack);
     process.exitCode = 1;
